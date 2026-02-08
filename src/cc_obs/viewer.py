@@ -110,11 +110,6 @@ h3 { font-size: 1rem; margin: 12px 0 6px; color: #94a3b8; }
 
 <div id="dashboard" class="dashboard"></div>
 
-<div class="controls">
-  <input type="text" id="search" placeholder="Search events..." oninput="filterEvents()">
-  <div class="filter-group" id="filters"></div>
-</div>
-
 <div class="tabs">
   <button class="tab-btn active" onclick="switchTab('timeline')">Timeline</button>
   <button class="tab-btn" onclick="switchTab('agent-tree')">Agent Tree</button>
@@ -151,7 +146,6 @@ let activeFilters = new Set(eventTypes);
 
 function init() {
   renderDashboard();
-  renderFilters();
   renderTimeline();
   renderAgentTree();
   renderSpans();
@@ -218,31 +212,6 @@ function renderDashboard() {
   el.innerHTML = html;
 }
 
-function renderFilters() {
-  const el = document.getElementById("filters");
-  el.innerHTML = eventTypes.map(t => {
-    const c = COLORS[t]||"#64748b";
-    return `<label><input type="checkbox" checked onchange="toggleFilter('${t}', this.checked)" style="accent-color:${c}"> ${t}</label>`;
-  }).join("");
-}
-
-function toggleFilter(type, on) {
-  if (on) activeFilters.add(type); else activeFilters.delete(type);
-  filterEvents();
-}
-
-function filterEvents() {
-  const q = document.getElementById("search").value.toLowerCase();
-  document.querySelectorAll(".event-card").forEach(card => {
-    const type = card.dataset.type;
-    const text = card.dataset.text;
-    const typeOk = activeFilters.has(type);
-    const searchOk = !q || text.includes(q);
-    card.style.display = typeOk && searchOk ? "" : "none";
-  });
-  document.querySelectorAll(".gap-marker").forEach(g => g.style.display = "");
-}
-
 function renderTimeline() {
   const el = document.getElementById("timeline");
   if (!EVENTS.length) { el.innerHTML = "<p>No events</p>"; return; }
@@ -296,6 +265,7 @@ function renderTimeline() {
 }
 
 function summarize(e) {
+  if (e._wrap) return `<code>${esc(e._wrap.command || e._wrap.name || "hook")}</code>`;
   const type = e.hook_event_name;
   if (type === "SessionStart") return `source: <code>${esc(e.source||"")}</code>`;
   if (type === "UserPromptSubmit") {
@@ -412,16 +382,16 @@ function renderSpans() {
     }
   });
 
-  // Build agent spans: match SubagentStart -> SubagentStop by agent_id
+  // Build agent spans: match SubagentStart -> last SubagentStop by agent_id
   const agentStarts = {};
-  const agentSpans = [];
+  const agentSpanMap = {};
   EVENTS.forEach(e => {
     if (e.hook_event_name === "SubagentStart" && e.agent_id) {
       agentStarts[e.agent_id] = e;
     }
     if (e.hook_event_name === "SubagentStop" && e.agent_id && agentStarts[e.agent_id]) {
       const start = agentStarts[e.agent_id];
-      agentSpans.push({
+      agentSpanMap[e.agent_id] = {
         type: "agent",
         label: (start.agent_type || "agent") + " " + start.agent_id,
         shortLabel: start.agent_type || start.agent_id,
@@ -430,6 +400,27 @@ function renderSpans() {
         end: new Date(e._ts).getTime(),
         color: COLORS.SubagentStart,
         events: [start, e]
+      };
+    }
+  });
+  const agentSpans = Object.values(agentSpanMap);
+
+  // Hook spans from _wrap events (e.g. stop hooks that block SubagentStop)
+  const hookSpans = [];
+  EVENTS.forEach(e => {
+    if (e._wrap && e._ts) {
+      const end = new Date(e._ts).getTime();
+      const start = end - (e._wrap.duration_ms || 0);
+      const failed = e._wrap.exit_code !== 0;
+      hookSpans.push({
+        type: "hook",
+        label: (e._wrap.name || e._wrap.command || "hook") + (failed ? " (exit:" + e._wrap.exit_code + ")" : ""),
+        start,
+        end,
+        color: failed ? COLORS.PostToolUseFailure : COLORS.PostToolUse,
+        agentId: e.agent_id || e._agent_id || null,
+        failed,
+        events: [e]
       });
     }
   });
@@ -445,18 +436,21 @@ function renderSpans() {
     events: [e]
   }));
 
-  // Build rows: session-level tools (no agent), then for each agent: agent span + child tools
+  // Build rows: session-level tools (no agent), then for each agent: agent span + child tools + hooks
   const rows = [];
 
-  // Session-level point events and tools without agent
+  // Session-level point events, tools, and hooks without agent
   const sessionTools = toolSpans.filter(s => !s.agentId);
-  const sessionItems = [...pointEvents, ...sessionTools].sort((a, b) => a.start - b.start);
+  const sessionHooks = hookSpans.filter(s => !s.agentId);
+  const sessionItems = [...pointEvents, ...sessionTools, ...sessionHooks].sort((a, b) => a.start - b.start);
   sessionItems.forEach(s => rows.push({ ...s, depth: 0 }));
 
-  // Agent spans with nested children
+  // Agent spans with nested children (tools + hooks)
   agentSpans.sort((a, b) => a.start - b.start).forEach(agent => {
     rows.push({ ...agent, depth: 0 });
-    const children = toolSpans.filter(s => s.agentId === agent.agentId).sort((a, b) => a.start - b.start);
+    const childTools = toolSpans.filter(s => s.agentId === agent.agentId);
+    const childHooks = hookSpans.filter(s => s.agentId === agent.agentId);
+    const children = [...childTools, ...childHooks].sort((a, b) => a.start - b.start);
     children.forEach(s => rows.push({ ...s, depth: 1, label: s.label }));
   });
 
