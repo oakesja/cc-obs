@@ -40,6 +40,7 @@ def main(argv: list[str] | None = None) -> None:
     p_view.add_argument(
         "--no-open", action="store_true", help="Generate without opening browser"
     )
+    p_view.add_argument("--log-file", help="Read events from a specific JSONL file")
 
     # clear
     p_clear = sub.add_parser("clear", help="Delete log and view files")
@@ -77,7 +78,7 @@ def main(argv: list[str] | None = None) -> None:
         case "view":
             from cc_obs.commands.view import run
 
-            run(no_open=args.no_open)
+            run(no_open=args.no_open, log_file=args.log_file)
         case "clear":
             from cc_obs.commands.clear import run
 

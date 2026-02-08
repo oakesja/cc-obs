@@ -53,6 +53,14 @@ h3 { font-size: 1rem; margin: 12px 0 6px; color: #94a3b8; }
 .controls input[type="checkbox"] { accent-color: #3b82f6; }
 .filter-group { display: flex; gap: 8px; flex-wrap: wrap; }
 
+/* Tabs */
+.tabs { display: flex; gap: 4px; margin-bottom: 20px; }
+.tab-btn { background: #334155; color: #94a3b8; border: none; padding: 8px 20px; border-radius: 6px; cursor: pointer; font-size: 0.9rem; font-weight: 500; transition: background 0.15s, color 0.15s; }
+.tab-btn:hover { background: #475569; color: #e2e8f0; }
+.tab-btn.active { background: #3b82f6; color: #fff; }
+.view-container { display: none; }
+.view-container.active { display: block; }
+
 /* Timeline */
 .event-card { background: #1e293b; border-radius: 8px; margin-bottom: 6px; border-left: 4px solid #334155; overflow: hidden; }
 .event-header { display: flex; align-items: center; gap: 10px; padding: 8px 12px; cursor: pointer; user-select: none; }
@@ -76,6 +84,24 @@ h3 { font-size: 1rem; margin: 12px 0 6px; color: #94a3b8; }
 .agent-header:hover { color: #60a5fa; }
 .agent-events { display: none; margin-top: 4px; }
 .agent-badge { display: inline-block; padding: 1px 6px; border-radius: 3px; font-size: 0.7rem; background: #f97316; color: #fff; margin-right: 4px; }
+
+/* Spans / Traces */
+.spans-container { background: #1e293b; border-radius: 8px; padding: 16px; overflow-x: auto; }
+.spans-time-axis { display: flex; position: relative; height: 24px; margin-left: 200px; margin-bottom: 8px; border-bottom: 1px solid #334155; }
+.spans-tick { position: absolute; font-size: 0.7rem; color: #64748b; transform: translateX(-50%); }
+.spans-tick::after { content: ""; position: absolute; left: 50%; top: 16px; width: 1px; height: 6px; background: #475569; }
+.span-row { display: flex; align-items: center; height: 28px; position: relative; }
+.span-row:hover { background: #1a2744; }
+.span-label { width: 200px; flex-shrink: 0; font-size: 0.8rem; color: #94a3b8; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; padding-right: 8px; }
+.span-label.depth-1 { padding-left: 20px; }
+.span-bar-area { flex: 1; position: relative; height: 20px; }
+.span-bar { position: absolute; height: 16px; top: 2px; border-radius: 3px; min-width: 3px; cursor: pointer; opacity: 0.85; transition: opacity 0.1s; }
+.span-bar:hover { opacity: 1; }
+.span-marker { position: absolute; width: 2px; height: 20px; top: 0; cursor: pointer; opacity: 0.85; }
+.span-marker:hover { opacity: 1; }
+.span-tooltip { position: fixed; background: #1e293b; border: 1px solid #475569; border-radius: 6px; padding: 8px 12px; font-size: 0.8rem; color: #e2e8f0; pointer-events: none; z-index: 100; max-width: 400px; white-space: pre-line; display: none; }
+.span-detail { background: #0f172a; border-top: 1px solid #334155; padding: 8px 12px; margin-left: 200px; display: none; }
+.span-detail pre { font-size: 0.8rem; white-space: pre-wrap; word-break: break-all; color: #94a3b8; max-height: 300px; overflow-y: auto; }
 </style>
 </head>
 <body>
@@ -89,12 +115,26 @@ h3 { font-size: 1rem; margin: 12px 0 6px; color: #94a3b8; }
   <div class="filter-group" id="filters"></div>
 </div>
 
-<h2>Timeline</h2>
-<div id="timeline"></div>
-
-<h2>Agent Tree</h2>
-<div id="agent-tree" class="agent-tree"></div>
+<div class="tabs">
+  <button class="tab-btn active" onclick="switchTab('timeline')">Timeline</button>
+  <button class="tab-btn" onclick="switchTab('agent-tree')">Agent Tree</button>
+  <button class="tab-btn" onclick="switchTab('spans')">Spans</button>
 </div>
+
+<div id="view-timeline" class="view-container active">
+  <div id="timeline"></div>
+</div>
+
+<div id="view-agent-tree" class="view-container">
+  <div id="agent-tree" class="agent-tree"></div>
+</div>
+
+<div id="view-spans" class="view-container">
+  <div id="spans" class="spans-container"></div>
+</div>
+</div>
+
+<div id="span-tooltip" class="span-tooltip"></div>
 
 <script>
 const EVENTS = __EVENTS_DATA__;
@@ -114,6 +154,17 @@ function init() {
   renderFilters();
   renderTimeline();
   renderAgentTree();
+  renderSpans();
+}
+
+function switchTab(name) {
+  document.querySelectorAll(".view-container").forEach(v => v.classList.remove("active"));
+  document.querySelectorAll(".tab-btn").forEach(b => b.classList.remove("active"));
+  document.getElementById("view-" + name).classList.add("active");
+  const labels = {"timeline": "Timeline", "agent-tree": "Agent Tree", "spans": "Spans"};
+  document.querySelectorAll(".tab-btn").forEach(b => {
+    if (b.textContent === labels[name]) b.classList.add("active");
+  });
 }
 
 function renderDashboard() {
@@ -325,6 +376,169 @@ function toggleAgentEvents(header) {
   if (!detail) return;
   detail.style.display = detail.style.display === "none" || !detail.style.display ? "block" : "none";
   header.textContent = header.textContent.replace(/[▸▾]/, detail.style.display === "block" ? "▾" : "▸");
+}
+
+function renderSpans() {
+  const el = document.getElementById("spans");
+  if (!EVENTS.length) { el.innerHTML = "<p>No events</p>"; return; }
+
+  const tsEvents = EVENTS.filter(e => e._ts);
+  if (tsEvents.length < 2) { el.innerHTML = "<p>Not enough timestamped events for span view</p>"; return; }
+
+  const t0 = new Date(tsEvents[0]._ts).getTime();
+  const t1 = new Date(tsEvents[tsEvents.length - 1]._ts).getTime();
+  const duration = t1 - t0;
+  if (duration <= 0) { el.innerHTML = "<p>All events at same timestamp</p>"; return; }
+
+  // Build tool spans: match PreToolUse -> PostToolUse/PostToolUseFailure by tool_use_id
+  const preTools = {};
+  const toolSpans = [];
+  EVENTS.forEach(e => {
+    if (e.hook_event_name === "PreToolUse" && e.tool_use_id) {
+      preTools[e.tool_use_id] = e;
+    }
+    if ((e.hook_event_name === "PostToolUse" || e.hook_event_name === "PostToolUseFailure") && e.tool_use_id && preTools[e.tool_use_id]) {
+      const pre = preTools[e.tool_use_id];
+      toolSpans.push({
+        type: "tool",
+        label: pre.tool_name || "Tool",
+        start: new Date(pre._ts).getTime(),
+        end: new Date(e._ts).getTime(),
+        color: COLORS[e.hook_event_name] || "#14b8a6",
+        agentId: pre._agent_id || null,
+        failed: e.hook_event_name === "PostToolUseFailure",
+        events: [pre, e]
+      });
+    }
+  });
+
+  // Build agent spans: match SubagentStart -> SubagentStop by agent_id
+  const agentStarts = {};
+  const agentSpans = [];
+  EVENTS.forEach(e => {
+    if (e.hook_event_name === "SubagentStart" && e.agent_id) {
+      agentStarts[e.agent_id] = e;
+    }
+    if (e.hook_event_name === "SubagentStop" && e.agent_id && agentStarts[e.agent_id]) {
+      const start = agentStarts[e.agent_id];
+      agentSpans.push({
+        type: "agent",
+        label: (start.agent_type || "agent") + " " + start.agent_id,
+        shortLabel: start.agent_type || start.agent_id,
+        agentId: start.agent_id,
+        start: new Date(start._ts).getTime(),
+        end: new Date(e._ts).getTime(),
+        color: COLORS.SubagentStart,
+        events: [start, e]
+      });
+    }
+  });
+
+  // Point events
+  const pointTypes = new Set(["SessionStart", "Stop", "UserPromptSubmit", "Notification", "PreCompact"]);
+  const pointEvents = EVENTS.filter(e => pointTypes.has(e.hook_event_name) && e._ts).map(e => ({
+    type: "point",
+    label: e.hook_event_name,
+    start: new Date(e._ts).getTime(),
+    end: new Date(e._ts).getTime(),
+    color: COLORS[e.hook_event_name] || "#64748b",
+    events: [e]
+  }));
+
+  // Build rows: session-level tools (no agent), then for each agent: agent span + child tools
+  const rows = [];
+
+  // Session-level point events and tools without agent
+  const sessionTools = toolSpans.filter(s => !s.agentId);
+  const sessionItems = [...pointEvents, ...sessionTools].sort((a, b) => a.start - b.start);
+  sessionItems.forEach(s => rows.push({ ...s, depth: 0 }));
+
+  // Agent spans with nested children
+  agentSpans.sort((a, b) => a.start - b.start).forEach(agent => {
+    rows.push({ ...agent, depth: 0 });
+    const children = toolSpans.filter(s => s.agentId === agent.agentId).sort((a, b) => a.start - b.start);
+    children.forEach(s => rows.push({ ...s, depth: 1, label: s.label }));
+  });
+
+  // Render time axis
+  const tickCount = 6;
+  let axisHtml = '<div class="spans-time-axis">';
+  for (let i = 0; i <= tickCount; i++) {
+    const pct = (i / tickCount) * 100;
+    const secs = (duration * i / tickCount) / 1000;
+    const label = secs < 60 ? secs.toFixed(0) + "s" : (secs / 60).toFixed(1) + "m";
+    axisHtml += `<span class="spans-tick" style="left:${pct}%">${label}</span>`;
+  }
+  axisHtml += '</div>';
+
+  // Render rows
+  let rowsHtml = '';
+  rows.forEach((row, idx) => {
+    const leftPct = ((row.start - t0) / duration) * 100;
+    const widthPct = Math.max(((row.end - row.start) / duration) * 100, 0.3);
+    const depthClass = row.depth === 1 ? ' depth-1' : '';
+    const displayLabel = row.depth === 1 ? '\u21b3 ' + row.label : row.label;
+    const durationMs = row.end - row.start;
+    const durationLabel = durationMs > 0 ? (durationMs < 1000 ? durationMs + "ms" : (durationMs / 1000).toFixed(1) + "s") : "";
+
+    if (row.type === "point") {
+      rowsHtml += `<div class="span-row" data-span-idx="${idx}">
+        <div class="span-label${depthClass}" title="${esc(displayLabel)}">${esc(displayLabel)}</div>
+        <div class="span-bar-area">
+          <div class="span-marker" style="left:${leftPct}%;background:${row.color}" data-span-idx="${idx}"></div>
+        </div>
+      </div>`;
+    } else {
+      rowsHtml += `<div class="span-row" data-span-idx="${idx}">
+        <div class="span-label${depthClass}" title="${esc(displayLabel)}">${esc(displayLabel)}${durationLabel ? ' <span style="color:#64748b;font-size:0.7rem">' + durationLabel + '</span>' : ''}</div>
+        <div class="span-bar-area">
+          <div class="span-bar" style="left:${leftPct}%;width:${widthPct}%;background:${row.color}" data-span-idx="${idx}"></div>
+        </div>
+      </div>`;
+    }
+    rowsHtml += `<div class="span-detail" id="span-detail-${idx}"><pre></pre></div>`;
+  });
+
+  el.innerHTML = axisHtml + rowsHtml;
+
+  // Tooltip handlers
+  const tooltip = document.getElementById("span-tooltip");
+  el.querySelectorAll(".span-bar, .span-marker").forEach(bar => {
+    bar.addEventListener("mouseenter", function(ev) {
+      const row = rows[this.dataset.spanIdx];
+      const durationMs = row.end - row.start;
+      const dur = durationMs > 0 ? (durationMs < 1000 ? durationMs + "ms" : (durationMs / 1000).toFixed(1) + "s") : "instant";
+      let text = row.label + "\n";
+      text += "Duration: " + dur + "\n";
+      if (row.events[0]._ts) text += "Start: " + row.events[0]._ts + "\n";
+      if (row.events.length > 1 && row.events[1]._ts) text += "End: " + row.events[1]._ts;
+      if (row.failed) text += "\nFAILED";
+      tooltip.textContent = text;
+      tooltip.style.display = "block";
+    });
+    bar.addEventListener("mousemove", function(ev) {
+      tooltip.style.left = (ev.clientX + 12) + "px";
+      tooltip.style.top = (ev.clientY + 12) + "px";
+    });
+    bar.addEventListener("mouseleave", function() {
+      tooltip.style.display = "none";
+    });
+  });
+
+  // Click to expand detail
+  el.querySelectorAll(".span-row").forEach(row => {
+    row.addEventListener("click", function() {
+      const idx = this.dataset.spanIdx;
+      const detail = document.getElementById("span-detail-" + idx);
+      if (!detail) return;
+      const isOpen = detail.style.display === "block";
+      detail.style.display = isOpen ? "none" : "block";
+      if (!isOpen) {
+        const r = rows[idx];
+        detail.querySelector("pre").textContent = JSON.stringify(r.events, null, 2);
+      }
+    });
+  });
 }
 
 function esc(s) {
