@@ -17,16 +17,16 @@
         "hooks": [
           {
             "type": "command",
-            "command": "uv run ruff format --quiet . && uv run ruff check --quiet --fix . && uv run ty check --quiet"
+            "command": ".claude/hooks/format_file.sh"
           }
         ]
       },
       {
-        "matcher": "",
+        "matcher": "Edit|Write",
         "hooks": [
           {
             "type": "command",
-            "command": "cc-obs log"
+            "command": ".claude/hooks/check_file.sh"
           }
         ]
       }
@@ -81,7 +81,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "cc-obs log"
+            "command": ".claude/hooks/run_tests.sh"
           }
         ]
       }

@@ -85,7 +85,7 @@ def _remove_hooks(existing: dict) -> dict:
         else:
             del hooks[event]
 
-    if not hooks:
+    if not hooks and "hooks" in result:
         del result["hooks"]
 
     return result
