@@ -38,7 +38,7 @@ def _split_frontmatter(text: str) -> tuple[dict, str]:
 
     end = text.index("---", 3)
     yaml_text = text[3:end].strip()
-    body = text[end + 3:]
+    body = text[end + 3 :]
     if body.startswith("\n"):
         body = body[1:]
 
@@ -70,5 +70,5 @@ def _unwrap_hooks(frontmatter: dict) -> dict:
                 if hook.get("type") == "command":
                     cmd = hook["command"]
                     if cmd.startswith(CC_OBS_PREFIX):
-                        hook["command"] = cmd[len(CC_OBS_PREFIX):]
+                        hook["command"] = cmd[len(CC_OBS_PREFIX) :]
     return result

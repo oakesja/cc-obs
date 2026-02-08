@@ -34,7 +34,12 @@ def _make_hooks() -> dict:
             hooks[event] = [
                 {
                     "matcher": "startup",
-                    "hooks": [{"type": "command", "command": "cc-obs clear --quiet && cc-obs log"}],
+                    "hooks": [
+                        {
+                            "type": "command",
+                            "command": "cc-obs clear --quiet && cc-obs log",
+                        }
+                    ],
                 },
                 {
                     "matcher": "resume|clear|compact",
