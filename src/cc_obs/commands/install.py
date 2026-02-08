@@ -22,6 +22,10 @@ HOOK_EVENTS = [
 CC_OBS_MARKER = "cc-obs"
 
 
+def _has_marker(entry: dict) -> bool:
+    return any(CC_OBS_MARKER in h.get("command", "") for h in entry.get("hooks", []))
+
+
 def _make_hooks() -> dict:
     hooks: dict[str, list] = {}
 
@@ -30,18 +34,18 @@ def _make_hooks() -> dict:
             hooks[event] = [
                 {
                     "matcher": "startup",
-                    "command": "cc-obs clear --quiet && cc-obs log",
+                    "hooks": [{"type": "command", "command": "cc-obs clear --quiet && cc-obs log"}],
                 },
                 {
                     "matcher": "resume|clear|compact",
-                    "command": "cc-obs log",
+                    "hooks": [{"type": "command", "command": "cc-obs log"}],
                 },
             ]
         else:
             hooks[event] = [
                 {
                     "matcher": "",
-                    "command": "cc-obs log",
+                    "hooks": [{"type": "command", "command": "cc-obs log"}],
                 },
             ]
 
@@ -56,7 +60,7 @@ def _merge_hooks(existing: dict, new_hooks: dict) -> dict:
     for event, new_entries in new_hooks.items():
         current = existing_hooks.get(event, [])
         # Keep entries that don't contain cc-obs
-        kept = [e for e in current if CC_OBS_MARKER not in e.get("command", "")]
+        kept = [e for e in current if not _has_marker(e)]
         existing_hooks[event] = kept + new_entries
 
     result["hooks"] = existing_hooks
@@ -70,7 +74,7 @@ def _remove_hooks(existing: dict) -> dict:
 
     for event in list(hooks.keys()):
         entries = hooks[event]
-        kept = [e for e in entries if CC_OBS_MARKER not in e.get("command", "")]
+        kept = [e for e in entries if not _has_marker(e)]
         if kept:
             hooks[event] = kept
         else:

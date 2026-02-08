@@ -32,6 +32,11 @@ def main(argv: list[str] | None = None) -> None:
     # status
     sub.add_parser("status", help="Print session summary")
 
+    # wrap-agent
+    p_wrap_agent = sub.add_parser("wrap-agent", help="Wrap an agent's hooks with cc-obs")
+    p_wrap_agent.add_argument("agent_file", help="Path to agent .md file")
+    p_wrap_agent.add_argument("--uninstall", action="store_true", help="Remove cc-obs wrapping")
+
     args = parser.parse_args(argv)
 
     if not args.command:
@@ -60,3 +65,6 @@ def main(argv: list[str] | None = None) -> None:
         case "status":
             from cc_obs.commands.status import run
             run()
+        case "wrap-agent":
+            from cc_obs.commands.wrap_agent import run
+            run(agent_file=args.agent_file, uninstall=args.uninstall)
