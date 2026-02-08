@@ -8,6 +8,12 @@ Observability for Claude Code sessions. Installs lightweight hooks that log ever
 uv tool install git+https://github.com/oakesja/cc-obs.git
 ```
 
+From a local checkout:
+
+```sh
+uv tool install --editable /path/to/cc-obs
+```
+
 ## Setup
 
 `cd` into any project that has a `.claude/` directory, then:

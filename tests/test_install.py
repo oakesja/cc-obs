@@ -37,8 +37,8 @@ def test_install_preserves_existing(project_dir):
         for entry in data["hooks"]["PostToolUse"]
         for h in entry.get("hooks", [])
     ]
-    assert "my-tool" in commands
-    assert any("cc-obs" in c for c in commands)
+    assert "cc-obs wrap -- my-tool" in commands
+    assert any("cc-obs log" in c for c in commands)
 
 
 def test_install_idempotent(project_dir):
@@ -89,6 +89,87 @@ def test_uninstall_empty(project_dir):
 
     data = json.loads(settings.read_text())
     assert "hooks" not in data
+
+
+def test_install_cc_obs_hooks_come_first(project_dir):
+    settings = project_dir / ".claude" / "settings.local.json"
+    existing = {
+        "hooks": {
+            "PostToolUse": [
+                {"matcher": "", "hooks": [{"type": "command", "command": "my-tool"}]}
+            ]
+        }
+    }
+    settings.write_text(json.dumps(existing))
+
+    run()
+
+    data = json.loads(settings.read_text())
+    entries = data["hooks"]["PostToolUse"]
+    first_commands = [h["command"] for h in entries[0].get("hooks", [])]
+    assert any("cc-obs log" in c for c in first_commands)
+
+
+def test_install_wraps_existing_hooks(project_dir):
+    settings = project_dir / ".claude" / "settings.local.json"
+    existing = {
+        "hooks": {
+            "PostToolUse": [
+                {
+                    "matcher": "",
+                    "hooks": [{"type": "command", "command": "my-tool check"}],
+                }
+            ]
+        }
+    }
+    settings.write_text(json.dumps(existing))
+
+    run()
+
+    data = json.loads(settings.read_text())
+    commands = [
+        h["command"]
+        for entry in data["hooks"]["PostToolUse"]
+        for h in entry.get("hooks", [])
+    ]
+    assert "cc-obs wrap -- my-tool check" in commands
+    # Original unwrapped command should not remain
+    assert "my-tool check" not in commands
+
+
+def test_uninstall_unwraps_existing_hooks(project_dir):
+    """Uninstall should remove cc-obs log hooks AND unwrap cc-obs wrap prefixes."""
+    settings = project_dir / ".claude" / "settings.local.json"
+    # Simulate what install produces: cc-obs log first, then wrapped user hook
+    existing = {
+        "hooks": {
+            "PostToolUse": [
+                {
+                    "matcher": "",
+                    "hooks": [{"type": "command", "command": "cc-obs log"}],
+                },
+                {
+                    "matcher": "",
+                    "hooks": [
+                        {"type": "command", "command": "cc-obs wrap -- my-tool check"}
+                    ],
+                },
+            ]
+        }
+    }
+    settings.write_text(json.dumps(existing))
+
+    run(uninstall=True)
+
+    data = json.loads(settings.read_text())
+    commands = [
+        h["command"]
+        for entry in data["hooks"].get("PostToolUse", [])
+        for h in entry.get("hooks", [])
+    ]
+    assert "my-tool check" in commands
+    assert "cc-obs wrap -- my-tool check" not in commands
+    assert "cc-obs log" not in commands
 
 
 def test_no_project_root_exits(tmp_path, monkeypatch):

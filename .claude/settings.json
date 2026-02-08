@@ -13,11 +13,11 @@
     ],
     "PostToolUse": [
       {
-        "matcher": "Edit|Write",
+        "matcher": "",
         "hooks": [
           {
             "type": "command",
-            "command": ".claude/hooks/format_file.sh"
+            "command": "cc-obs log"
           }
         ]
       },
@@ -26,7 +26,16 @@
         "hooks": [
           {
             "type": "command",
-            "command": ".claude/hooks/check_file.sh"
+            "command": "cc-obs wrap -- .claude/hooks/format_file.sh"
+          }
+        ]
+      },
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "cc-obs wrap -- .claude/hooks/check_file.sh"
           }
         ]
       }
@@ -81,7 +90,16 @@
         "hooks": [
           {
             "type": "command",
-            "command": ".claude/hooks/run_tests.sh"
+            "command": "cc-obs log"
+          }
+        ]
+      },
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "cc-obs wrap -- .claude/hooks/run_tests.sh"
           }
         ]
       }
