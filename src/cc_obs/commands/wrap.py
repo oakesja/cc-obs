@@ -7,7 +7,7 @@ from datetime import datetime, timezone
 from cc_obs.project import find_project_root, events_path, obs_dir
 
 
-def run(cmd: list[str]) -> None:
+def run(cmd: list[str], name: str = "") -> None:
     if not cmd:
         print("Usage: cc-obs wrap -- <command>", file=sys.stderr)
         sys.exit(1)
@@ -45,13 +45,16 @@ def run(cmd: list[str]) -> None:
 
             event["_ts"] = datetime.now(timezone.utc).isoformat()
             event["_seq"] = seq
-            event["_wrap"] = {
+            wrap_data = {
                 "command": " ".join(cmd),
                 "exit_code": result.returncode,
                 "duration_ms": duration_ms,
                 "stdout": result.stdout.decode(errors="replace"),
                 "stderr": result.stderr.decode(errors="replace"),
             }
+            if name:
+                wrap_data["name"] = name
+            event["_wrap"] = wrap_data
 
             with open(out_file, "a") as f:
                 f.write(json.dumps(event, separators=(",", ":")) + "\n")

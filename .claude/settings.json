@@ -26,7 +26,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "cc-obs wrap -- .claude/hooks/format_file.sh"
+            "command": "cc-obs wrap --name \"format_file\" -- .claude/hooks/format_file.sh"
           }
         ]
       },
@@ -35,7 +35,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "cc-obs wrap -- .claude/hooks/check_file.sh"
+            "command": "cc-obs wrap --name \"check_file\" -- .claude/hooks/check_file.sh"
           }
         ]
       }
@@ -99,7 +99,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "cc-obs wrap -- .claude/hooks/run_tests.sh"
+            "command": "cc-obs wrap --name \"run_tests\" -- .claude/hooks/run_tests.sh"
           }
         ]
       }

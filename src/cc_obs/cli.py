@@ -19,12 +19,18 @@ def main(argv: list[str] | None = None) -> None:
     p_install.add_argument(
         "--uninstall", action="store_true", help="Remove all cc-obs hooks"
     )
+    p_install.add_argument(
+        "--no-prompt",
+        action="store_true",
+        help="Run non-interactively with default settings",
+    )
 
     # log
     sub.add_parser("log", help="Observer hook handler (reads stdin)")
 
     # wrap
     p_wrap = sub.add_parser("wrap", help="Wrap a hook command with timing")
+    p_wrap.add_argument("--name", default="", help="Display label for the wrapped hook")
     p_wrap.add_argument(
         "cmd", nargs=argparse.REMAINDER, help="Command to wrap (after --)"
     )
@@ -42,15 +48,6 @@ def main(argv: list[str] | None = None) -> None:
     # status
     sub.add_parser("status", help="Print session summary")
 
-    # wrap-agent
-    p_wrap_agent = sub.add_parser(
-        "wrap-agent", help="Wrap an agent's hooks with cc-obs"
-    )
-    p_wrap_agent.add_argument("agent_file", help="Path to agent .md file")
-    p_wrap_agent.add_argument(
-        "--uninstall", action="store_true", help="Remove cc-obs wrapping"
-    )
-
     args = parser.parse_args(argv)
 
     if not args.command:
@@ -61,7 +58,11 @@ def main(argv: list[str] | None = None) -> None:
         case "install":
             from cc_obs.commands.install import run
 
-            run(project=args.project, uninstall=args.uninstall)
+            run(
+                project=args.project,
+                uninstall=args.uninstall,
+                no_prompt=args.no_prompt,
+            )
         case "log":
             from cc_obs.commands.log import run
 
@@ -72,7 +73,7 @@ def main(argv: list[str] | None = None) -> None:
             cmd = args.cmd
             if cmd and cmd[0] == "--":
                 cmd = cmd[1:]
-            run(cmd)
+            run(cmd, name=args.name)
         case "view":
             from cc_obs.commands.view import run
 
@@ -85,7 +86,3 @@ def main(argv: list[str] | None = None) -> None:
             from cc_obs.commands.status import run
 
             run()
-        case "wrap-agent":
-            from cc_obs.commands.wrap_agent import run
-
-            run(agent_file=args.agent_file, uninstall=args.uninstall)

@@ -3,7 +3,7 @@ name = "cc-obs"
 version = "0.1.0"
 description = "Observability for Claude Code sessions"
 requires-python = ">=3.12"
-dependencies = ["pyyaml"]
+dependencies = ["pyyaml", "questionary"]
 
 [project.scripts]
 cc-obs = "cc_obs.cli:main"

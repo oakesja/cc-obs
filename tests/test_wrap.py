@@ -41,6 +41,26 @@ def test_wrap_no_command_exits():
     assert exc.value.code == 1
 
 
+def test_wrap_name_in_event(project_dir, sample_event, events_file, feed_stdin):
+    feed_stdin(json.dumps(sample_event).encode())
+    with pytest.raises(SystemExit) as exc:
+        run(["echo", "hello"], name="my label")
+    assert exc.value.code == 0
+    event = json.loads(events_file.read_text().strip())
+    assert event["_wrap"]["name"] == "my label"
+
+
+def test_wrap_name_omitted_when_empty(
+    project_dir, sample_event, events_file, feed_stdin
+):
+    feed_stdin(json.dumps(sample_event).encode())
+    with pytest.raises(SystemExit) as exc:
+        run(["echo", "hello"])
+    assert exc.value.code == 0
+    event = json.loads(events_file.read_text().strip())
+    assert "name" not in event["_wrap"]
+
+
 def test_wrap_empty_stdin(project_dir, events_file, feed_stdin):
     feed_stdin(b"")
     with pytest.raises(SystemExit) as exc:

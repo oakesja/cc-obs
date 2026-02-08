@@ -1,35 +1,40 @@
 import copy
-import sys
+from pathlib import Path
 
 import yaml
 
-CC_OBS_PREFIX = "cc-obs wrap -- "
+CC_OBS_PREFIX = "cc-obs wrap "
 
 
-def run(agent_file: str, uninstall: bool = False) -> None:
-    try:
-        text = open(agent_file).read()
-    except FileNotFoundError:
-        print(f"File not found: {agent_file}", file=sys.stderr)
-        sys.exit(1)
-
+def wrap_file(path: Path, hook_names: dict[str, str] | None = None) -> None:
+    text = path.read_text()
     frontmatter, body = _split_frontmatter(text)
-
     if "hooks" not in frontmatter:
-        print(f"No hooks found in {agent_file}", file=sys.stderr)
-        sys.exit(1)
+        return
+    frontmatter = _wrap_hooks(frontmatter, hook_names or {})
+    path.write_text(_join_frontmatter(frontmatter, body))
 
-    if uninstall:
-        frontmatter = _unwrap_hooks(frontmatter)
-        action = "Unwrapped"
-    else:
-        frontmatter = _wrap_hooks(frontmatter)
-        action = "Wrapped"
 
-    with open(agent_file, "w") as f:
-        f.write(_join_frontmatter(frontmatter, body))
+def unwrap_file(path: Path) -> None:
+    text = path.read_text()
+    frontmatter, body = _split_frontmatter(text)
+    if "hooks" not in frontmatter:
+        return
+    if not _has_cc_obs(frontmatter):
+        return
+    frontmatter = _unwrap_hooks(frontmatter)
+    path.write_text(_join_frontmatter(frontmatter, body))
 
-    print(f"{action} hooks in {agent_file}")
+
+def _has_cc_obs(frontmatter: dict) -> bool:
+    for entries in frontmatter.get("hooks", {}).values():
+        for entry in entries:
+            for hook in entry.get("hooks", []):
+                if hook.get("type") == "command" and hook.get("command", "").startswith(
+                    CC_OBS_PREFIX
+                ):
+                    return True
+    return False
 
 
 def _split_frontmatter(text: str) -> tuple[dict, str]:
@@ -50,15 +55,20 @@ def _join_frontmatter(frontmatter: dict, body: str) -> str:
     return f"---\n{yaml_text}---\n{body}"
 
 
-def _wrap_hooks(frontmatter: dict) -> dict:
+def _wrap_hooks(frontmatter: dict, hook_names: dict[str, str] | None = None) -> dict:
     result = copy.deepcopy(frontmatter)
+    names = hook_names or {}
     for entries in result["hooks"].values():
         for entry in entries:
             for hook in entry.get("hooks", []):
                 if hook.get("type") == "command":
                     cmd = hook["command"]
                     if not cmd.startswith(CC_OBS_PREFIX):
-                        hook["command"] = CC_OBS_PREFIX + cmd
+                        name = names.get(cmd, "")
+                        if name:
+                            hook["command"] = f'cc-obs wrap --name "{name}" -- {cmd}'
+                        else:
+                            hook["command"] = f"cc-obs wrap -- {cmd}"
     return result
 
 
@@ -70,5 +80,7 @@ def _unwrap_hooks(frontmatter: dict) -> dict:
                 if hook.get("type") == "command":
                     cmd = hook["command"]
                     if cmd.startswith(CC_OBS_PREFIX):
-                        hook["command"] = cmd[len(CC_OBS_PREFIX) :]
+                        dash_idx = cmd.find("-- ", len(CC_OBS_PREFIX))
+                        if dash_idx != -1:
+                            hook["command"] = cmd[dash_idx + 3 :]
     return result
