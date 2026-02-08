@@ -30,6 +30,11 @@ To remove all hooks:
 cc-obs install --uninstall
 ```
 
+Don't forget to add the following to your .gitignore
+```sh
+.claude/cc-obs
+```
+
 ## Usage
 
 Once installed, just use Claude Code normally. Events are logged automatically to `.claude/cc-obs/events.jsonl`. Logs are cleared at the start of each new session (but not on resume/compact).

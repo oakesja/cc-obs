@@ -57,8 +57,8 @@ h3 { font-size: 1rem; margin: 12px 0 6px; color: #94a3b8; }
 .event-card { background: #1e293b; border-radius: 8px; margin-bottom: 6px; border-left: 4px solid #334155; overflow: hidden; }
 .event-header { display: flex; align-items: center; gap: 10px; padding: 8px 12px; cursor: pointer; user-select: none; }
 .event-header:hover { background: #334155; }
-.event-badge { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 0.75rem; font-weight: 600; color: #fff; white-space: nowrap; }
-.event-time { font-size: 0.75rem; color: #64748b; font-family: monospace; white-space: nowrap; }
+.event-badge { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 0.75rem; font-weight: 600; color: #fff; white-space: nowrap; width: 150px; text-align: center; flex-shrink: 0; }
+.event-time { font-size: 0.75rem; color: #64748b; font-family: monospace; white-space: nowrap; width: 65px; text-align: right; flex-shrink: 0; }
 .event-summary { font-size: 0.85rem; flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .event-summary code { background: #334155; padding: 1px 4px; border-radius: 3px; font-size: 0.8rem; }
 .wrap-badge { font-size: 0.7rem; background: #334155; padding: 2px 6px; border-radius: 4px; white-space: nowrap; }
@@ -223,6 +223,10 @@ function renderTimeline() {
       const cls = e._wrap.exit_code === 0 ? "ok" : "fail";
       wrapBadge = `<span class="wrap-badge ${cls}">${e._wrap.duration_ms}ms exit:${e._wrap.exit_code}</span>`;
     }
+    let agentBadge = "";
+    if (e._agent_id) {
+      agentBadge = `<span class="agent-badge">${esc(e._agent_type || e._agent_id)}</span>`;
+    }
 
     const text = JSON.stringify(e).toLowerCase();
 
@@ -231,7 +235,7 @@ function renderTimeline() {
         <span class="event-badge" style="background:${color}">${esc(type)}</span>
         <span class="event-time">${relTime}</span>
         <span class="event-summary">${summary}</span>
-        ${wrapBadge}
+        ${agentBadge}${wrapBadge}
       </div>
       <div class="event-detail"><pre>${esc(JSON.stringify(e, null, 2))}</pre></div>
     </div>`;
@@ -275,10 +279,10 @@ function renderAgentTree() {
   const starts = EVENTS.filter(e => e.hook_event_name === "SubagentStart");
   if (!starts.length) { el.innerHTML = "<p>No subagent activity</p>"; return; }
 
-  // Group events by agent_id
+  // Group events by agent_id (or enriched _agent_id)
   const agentEvents = {};
   EVENTS.forEach(e => {
-    const aid = e.agent_id;
+    const aid = e.agent_id || e._agent_id;
     if (aid) {
       if (!agentEvents[aid]) agentEvents[aid] = [];
       agentEvents[aid].push(e);
