@@ -3,7 +3,7 @@ import sys
 from dataclasses import dataclass, field
 from pathlib import Path
 
-from cc_obs.project import find_project_root, settings_path
+from cc_obs.project import settings_path
 
 HOOK_EVENTS = [
     "PreToolUse",
@@ -43,6 +43,7 @@ class AgentChoice:
 @dataclass
 class InstallConfig:
     project: bool = False
+    global_install: bool = False
     uninstall: bool = False
     existing_hook_choices: list[HookWrapChoice] = field(default_factory=list)
     agents: list[AgentChoice] = field(default_factory=list)
@@ -216,17 +217,23 @@ def execute_install(root: Path, config: InstallConfig) -> None:
 
 
 def run(
-    project: bool = False, uninstall: bool = False, no_prompt: bool = False
+    project: bool = False,
+    global_install: bool = False,
+    uninstall: bool = False,
+    no_prompt: bool = False,
 ) -> None:
-    root = find_project_root()
-    if root is None:
-        root = Path.cwd()
+    root = Path.cwd()
 
     if not no_prompt and not uninstall and sys.stdin.isatty():
         from cc_obs.commands.install_prompt import gather_choices
 
         config = gather_choices(root)
     else:
-        config = InstallConfig(project=project, uninstall=uninstall)
+        config = InstallConfig(
+            project=project, global_install=global_install, uninstall=uninstall
+        )
+
+    if config.global_install:
+        root = Path.home()
 
     execute_install(root, config)

@@ -3,8 +3,9 @@ import subprocess
 import sys
 import time
 from datetime import datetime, timezone
+from pathlib import Path
 
-from cc_obs.project import find_project_root, events_path, obs_dir
+from cc_obs.project import events_path, obs_dir
 
 
 def run(cmd: list[str], name: str = "") -> None:
@@ -32,8 +33,8 @@ def run(cmd: list[str], name: str = "") -> None:
             event = {}
 
         cwd = event.get("cwd")
-        root = find_project_root(cwd)
-        if root is not None:
+        root = Path(cwd) if cwd else None
+        if root is not None and (root / ".claude").is_dir():
             out_dir = obs_dir(root)
             out_dir.mkdir(parents=True, exist_ok=True)
             out_file = events_path(root)

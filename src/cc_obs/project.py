@@ -1,15 +1,6 @@
 from pathlib import Path
 
 
-def find_project_root(cwd: str | None = None) -> Path | None:
-    """Walk up from cwd looking for a .claude directory."""
-    start = Path(cwd) if cwd else Path.cwd()
-    for parent in [start, *start.parents]:
-        if (parent / ".claude").is_dir():
-            return parent
-    return None
-
-
 def obs_dir(project_root: Path) -> Path:
     return project_root / ".claude" / "cc-obs"
 

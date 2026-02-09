@@ -4,7 +4,7 @@ import tempfile
 import webbrowser
 from pathlib import Path
 
-from cc_obs.project import find_project_root, events_path, view_path
+from cc_obs.project import events_path, view_path
 from cc_obs.viewer import render_html
 
 
@@ -23,11 +23,10 @@ def run(no_open: bool = False, log_file: str | None = None) -> None:
         vp.write_text(render_html(events))
         print(f"Generated {vp}")
     else:
-        root = find_project_root()
-        if root is None:
+        root = Path.cwd()
+        if not (root / ".claude").is_dir():
             print("No .claude directory found", file=sys.stderr)
             sys.exit(1)
-            return
         ep = events_path(root)
         if not ep.exists():
             print("No events logged yet")

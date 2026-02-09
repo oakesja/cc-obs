@@ -14,28 +14,55 @@ from cc_obs.commands.wrap_agent import _split_frontmatter
 from cc_obs.project import settings_path
 
 
+def _file_label(path: Path) -> str:
+    return "update" if path.exists() else "create"
+
+
 def gather_choices(root: Path) -> InstallConfig:
-    project = questionary.select(
+    local_path = settings_path(root, project=False)
+    project_path = settings_path(root, project=True)
+    global_path = Path.home() / ".claude" / "settings.json"
+
+    # sentinel values: "local", "project", "global"
+    choice = questionary.select(
         "Where should cc-obs write hooks?",
         choices=[
-            questionary.Choice("settings.local.json (gitignored)", value=False),
-            questionary.Choice("settings.json (shared)", value=True),
+            questionary.Choice(
+                f"settings.local.json (gitignored) — {_file_label(local_path)}",
+                value="local",
+            ),
+            questionary.Choice(
+                f"settings.json (shared) — {_file_label(project_path)}",
+                value="project",
+            ),
+            questionary.Choice(
+                f"Global (~/.claude/settings.json) — {_file_label(global_path)}",
+                value="global",
+            ),
         ],
     ).ask()
 
-    if project is None:
+    if choice is None:
         raise SystemExit(1)
 
-    path = settings_path(root, project=project)
+    project = choice == "project"
+    global_install = choice == "global"
+
+    if global_install:
+        target_path = global_path
+    else:
+        target_path = settings_path(root, project=project)
+
     existing = {}
-    if path.exists():
-        existing = json.loads(path.read_text())
+    if target_path.exists():
+        existing = json.loads(target_path.read_text())
 
     hook_choices = _ask_existing_hooks(existing)
     agents = _ask_agents(root)
 
     return InstallConfig(
         project=project,
+        global_install=global_install,
         existing_hook_choices=hook_choices,
         agents=agents,
     )

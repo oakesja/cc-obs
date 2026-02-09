@@ -20,6 +20,12 @@ def main(argv: list[str] | None = None) -> None:
         "--uninstall", action="store_true", help="Remove all cc-obs hooks"
     )
     p_install.add_argument(
+        "--global",
+        dest="global_install",
+        action="store_true",
+        help="Install to ~/.claude/settings.json",
+    )
+    p_install.add_argument(
         "--no-prompt",
         action="store_true",
         help="Run non-interactively with default settings",
@@ -61,6 +67,7 @@ def main(argv: list[str] | None = None) -> None:
 
             run(
                 project=args.project,
+                global_install=args.global_install,
                 uninstall=args.uninstall,
                 no_prompt=args.no_prompt,
             )

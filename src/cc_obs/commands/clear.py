@@ -1,11 +1,12 @@
 import sys
+from pathlib import Path
 
-from cc_obs.project import find_project_root, events_path, view_path
+from cc_obs.project import events_path, view_path
 
 
 def run(quiet: bool = False) -> None:
-    root = find_project_root()
-    if root is None:
+    root = Path.cwd()
+    if not (root / ".claude").is_dir():
         if not quiet:
             print("No .claude directory found", file=sys.stderr)
             sys.exit(1)

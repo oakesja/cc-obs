@@ -3,7 +3,7 @@ import sys
 from datetime import datetime, timezone
 from pathlib import Path
 
-from cc_obs.project import find_project_root, events_path, obs_dir
+from cc_obs.project import events_path, obs_dir
 
 
 def run() -> None:
@@ -17,8 +17,8 @@ def run() -> None:
         return
 
     cwd = event.get("cwd")
-    root = find_project_root(cwd)
-    if root is None:
+    root = Path(cwd) if cwd else None
+    if root is None or not (root / ".claude").is_dir():
         return
 
     out_dir = obs_dir(root)

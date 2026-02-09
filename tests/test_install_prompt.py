@@ -26,14 +26,8 @@ hooks:
 
 
 def test_gather_choices_project_selection(project_dir):
-    answers = iter(
-        [
-            FakeQuestion(True),  # project selection
-        ]
-    )
-
     def fake_select(message, **kwargs):
-        return next(answers)
+        return FakeQuestion("project")
 
     def fake_confirm(message, **kwargs):
         return FakeQuestion(True)
@@ -53,6 +47,7 @@ def test_gather_choices_project_selection(project_dir):
         config = gather_choices(project_dir)
 
     assert config.project is True
+    assert config.global_install is False
 
 
 def test_gather_choices_existing_hooks(project_dir):
@@ -73,7 +68,7 @@ def test_gather_choices_existing_hooks(project_dir):
     text_answers = iter([FakeQuestion("My Tool")])
 
     def fake_select(message, **kwargs):
-        return FakeQuestion(False)  # settings.local.json
+        return FakeQuestion("local")
 
     def fake_confirm(message, **kwargs):
         return next(confirm_answers)
@@ -117,7 +112,7 @@ def test_gather_choices_with_agents(project_dir):
     text_answers = iter([FakeQuestion("Agent Hook")])
 
     def fake_select(message, **kwargs):
-        return FakeQuestion(False)
+        return FakeQuestion("local")
 
     def fake_confirm(message, **kwargs):
         return FakeQuestion(True)
