@@ -2,6 +2,7 @@ import json
 from pathlib import Path
 
 import questionary
+import yaml
 
 from cc_obs.commands.install import (
     AgentChoice,
@@ -83,9 +84,9 @@ def _discover_agents(root: Path) -> list[Path]:
             continue
         try:
             text = md.read_text()
-        except OSError:
+            frontmatter, _ = _split_frontmatter(text)
+        except (OSError, ValueError, yaml.YAMLError):
             continue
-        frontmatter, _ = _split_frontmatter(text)
         if frontmatter.get("hooks"):
             agents.append(md)
     return agents

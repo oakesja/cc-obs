@@ -1,4 +1,6 @@
-from cc_obs.commands.wrap_agent import wrap_file, unwrap_file
+import pytest
+
+from cc_obs.commands.wrap_agent import wrap_file, unwrap_file, _split_frontmatter
 
 
 AGENT_MD = """\
@@ -89,3 +91,16 @@ def test_unwrap_noop_when_no_cc_obs(tmp_path):
     f.write_text(AGENT_MD)
     unwrap_file(f)
     assert f.read_text() == AGENT_MD
+
+
+def test_split_frontmatter_dashes_in_yaml_value():
+    text = "---\ntitle: some --- text\n---\nBody\n"
+    frontmatter, body = _split_frontmatter(text)
+    assert frontmatter == {"title": "some --- text"}
+    assert body == "Body\n"
+
+
+def test_split_frontmatter_no_closing_delimiter():
+    text = "---\ntitle: test\nBody without closing delimiter\n"
+    with pytest.raises(ValueError):
+        _split_frontmatter(text)

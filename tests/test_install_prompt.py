@@ -139,3 +139,21 @@ def test_gather_choices_with_agents(project_dir):
     assert len(config.agents) == 1
     assert config.agents[0].wrap is True
     assert config.agents[0].hook_names == {"my-tool check": "Agent Hook"}
+
+
+def test_discover_agents_skips_malformed_frontmatter(project_dir):
+    valid = project_dir / ".claude" / "agent.md"
+    valid.write_text(AGENT_MD)
+
+    # Missing closing delimiter — triggers ValueError
+    no_close = project_dir / ".claude" / "no_close.md"
+    no_close.write_text("---\ntitle: oops\nNo closing delimiter here\n")
+
+    # Invalid YAML — triggers yaml.YAMLError
+    bad_yaml = project_dir / ".claude" / "bad_yaml.md"
+    bad_yaml.write_text("---\n: [invalid yaml\n---\nBody\n")
+
+    agents = _discover_agents(project_dir)
+    assert valid in agents
+    assert no_close not in agents
+    assert bad_yaml not in agents

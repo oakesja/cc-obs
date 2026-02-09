@@ -41,9 +41,9 @@ def _split_frontmatter(text: str) -> tuple[dict, str]:
     if not text.startswith("---"):
         return {}, text
 
-    end = text.index("---", 3)
+    end = text.index("\n---", 3)
     yaml_text = text[3:end].strip()
-    body = text[end + 3 :]
+    body = text[end + 4 :]
     if body.startswith("\n"):
         body = body[1:]
 
