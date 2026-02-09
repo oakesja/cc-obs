@@ -1,6 +1,5 @@
 import json
 
-import pytest
 
 from cc_obs.commands.install import (
     AgentChoice,
@@ -212,11 +211,13 @@ def test_uninstall_unwraps_existing_hooks(project_dir):
     assert "cc-obs log" not in commands
 
 
-def test_no_project_root_exits(tmp_path, monkeypatch):
+def test_no_claude_dir_creates_it(tmp_path, monkeypatch):
     monkeypatch.chdir(tmp_path)
-    with pytest.raises(SystemExit) as exc:
-        run()
-    assert exc.value.code == 1
+    run(no_prompt=True)
+    settings = tmp_path / ".claude" / "settings.local.json"
+    assert settings.exists()
+    data = json.loads(settings.read_text())
+    assert "hooks" in data
 
 
 def test_project_flag(project_dir):
@@ -312,6 +313,22 @@ def test_execute_default_config_matches_current_behavior(project_dir):
     ]
     assert "cc-obs wrap -- my-tool" in commands
     assert any("cc-obs log" in c for c in commands)
+
+
+def test_execute_install_no_settings_file(project_dir):
+    execute_install(project_dir, InstallConfig())
+    settings = project_dir / ".claude" / "settings.local.json"
+    assert settings.exists()
+    data = json.loads(settings.read_text())
+    assert "hooks" in data
+
+
+def test_execute_install_no_claude_dir(tmp_path):
+    execute_install(tmp_path, InstallConfig())
+    settings = tmp_path / ".claude" / "settings.local.json"
+    assert settings.exists()
+    data = json.loads(settings.read_text())
+    assert "hooks" in data
 
 
 def test_execute_wraps_agent(project_dir):

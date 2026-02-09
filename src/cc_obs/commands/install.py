@@ -210,6 +210,7 @@ def execute_install(root: Path, config: InstallConfig) -> None:
             if agent.wrap:
                 wrap_file(agent.path, hook_names=agent.hook_names)
 
+    path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(json.dumps(updated, indent=2) + "\n")
     print(f"{action} cc-obs hooks in {path.relative_to(root)}")
 
@@ -219,9 +220,7 @@ def run(
 ) -> None:
     root = find_project_root()
     if root is None:
-        print("No .claude directory found", file=sys.stderr)
-        sys.exit(1)
-        return
+        root = Path.cwd()
 
     if not no_prompt and not uninstall and sys.stdin.isatty():
         from cc_obs.commands.install_prompt import gather_choices
